@@ -8,7 +8,8 @@ import os
 
 # Add config folder to path so we can import it
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from config.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, SLEEP_SECONDS
+from config.config import KAFKA_TOPIC, SLEEP_SECONDS
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 
 # Initialize Faker — generates realistic fake data
 fake = Faker()
@@ -50,15 +51,26 @@ def generate_order():
 
 def create_producer():
     """
-    Connect to Kafka and return a producer
+    Connect to Kafka with retry logic
     """
-    producer = KafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda x: json.dumps(x).encode('utf-8')
-    )
-    return producer
+    import time
+    retries = 10
+    for i in range(retries):
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                value_serializer=lambda x: json.dumps(x).encode('utf-8')
+            )
+            print("Connected to Kafka successfully!")
+            return producer
+        except Exception as e:
+            print(f"Kafka not ready yet... attempt {i+1}/{retries}. Waiting 10 seconds...")
+            time.sleep(10)
+    raise Exception("Could not connect to Kafka after multiple attempts")
 
 def run_producer():
+    print(f"Connecting to Kafka at: {KAFKA_BOOTSTRAP_SERVERS}")  # ADD THIS
+    print("Starting TechMart Order Producer...")
     """
     Main function — generates orders and sends to Kafka
     """

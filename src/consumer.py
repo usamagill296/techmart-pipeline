@@ -7,16 +7,29 @@ import os
 from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from config.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, BATCH_SIZE, AWS_BUCKET_NAME, AWS_REGION
+from config.config import KAFKA_TOPIC, BATCH_SIZE, AWS_BUCKET_NAME, AWS_REGION
+KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 
 def create_consumer():
-    consumer = KafkaConsumer(
-        KAFKA_TOPIC,
-        bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        auto_offset_reset='earliest',
-        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-    )
-    return consumer
+    """
+    Connect to Kafka with retry logic
+    """
+    import time
+    retries = 10
+    for i in range(retries):
+        try:
+            consumer = KafkaConsumer(
+                KAFKA_TOPIC,
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                auto_offset_reset='earliest',
+                value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+            )
+            print("Connected to Kafka successfully!")
+            return consumer
+        except Exception as e:
+            print(f"Kafka not ready yet... attempt {i+1}/{retries}. Waiting 10 seconds...")
+            time.sleep(10)
+    raise Exception("Could not connect to Kafka after multiple attempts")
 
 def transform_orders(orders):
     df = pd.DataFrame(orders)
