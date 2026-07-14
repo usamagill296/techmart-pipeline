@@ -34,7 +34,7 @@ jobs:
         run: python -m py_compile config/config.py
 
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
 
       - name: Verify Docker images exist
         run: docker images | grep techmart
